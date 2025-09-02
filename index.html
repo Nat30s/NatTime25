@@ -133,96 +133,123 @@
 
     // ---------- Grid Builders ----------
     function buildWeekView(date) {
-        const monday = getMonday(date);
-        const month = monday.getMonth();
-        const year = monday.getFullYear();
+    // Custom week logic
+    let monday = getMonday(date);
+    let month = monday.getMonth();
+    let year = monday.getFullYear();
+    let firstOfMonth = new Date(year, month, 1);
+    let lastOfMonth = new Date(year, month + 1, 0);
 
-        // Calculate week number
-        const firstOfMonth = new Date(year, month, 1);
-        const firstMondayOfMonth = getMonday(firstOfMonth);
-        const diffDays = Math.round((monday - firstMondayOfMonth) / (1000 * 60 * 60 * 24));
-        const weekOfMonth = Math.floor(diffDays / 7) + 1;
-
-        const weekLabel = `${monday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (Week ${weekOfMonth})`;
-
-        $('#view-header').innerHTML = `
-            <div class="flex items-center border rounded-lg p-0.5">
-                <button id="prevWeekBtn" class="p-1.5 rounded-md hover:bg-gray-100" title="Previous Week"><i class="fas fa-chevron-left text-xs"></i></button>
-                <button id="todayBtn" class="px-3 py-0.5 text-sm rounded-md hover:bg-gray-100" title="Go to Today">Today</button>
-                <button id="nextWeekBtn" class="p-1.5 rounded-md hover:bg-gray-100" title="Next Week"><i class="fas fa-chevron-right text-xs"></i></button>
-            </div>
-            <h2 class="text-lg font-medium text-gray-600">${weekLabel}</h2>`;
-
-        $('#prevWeekBtn').onclick = () => { displayedDate.setDate(displayedDate.getDate() - 7); renderApp(); };
-        $('#nextWeekBtn').onclick = () => { displayedDate.setDate(displayedDate.getDate() + 7); renderApp(); };
-        $('#todayBtn').onclick = () => { displayedDate = new Date(); renderApp(); };
-
-        // Build full Mon–Sun grid
-        const grid = $('#grid');
-        grid.innerHTML = '';
-        const table = document.createElement('div');
-
-        const header = document.createElement('div');
-        header.className = 'grid gap-4';
-        const gridTemplateCols = '[time-col] 150px repeat(7, [day-col] 1fr)';
-        header.style.gridTemplateColumns = gridTemplateCols;
-
-        let headerHtml = '<div></div>'; // empty corner cell
-        let daysInWeek = [];
-
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            daysInWeek.push(d);
-
-            if (d.getMonth() === month) {
-                // Show weekday + full date
-                headerHtml += `
-                  <div class="text-sm font-semibold text-center">
-                    ${d.toLocaleDateString('en-US', { weekday: 'short' })}
-                    <div class="font-normal text-gray-500 text-sm">
-                    ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear().toString().slice(-2)}
-                    </div>
-                  </div>`;
-            } else {
-                // Blank cell for out-of-month days
-                headerHtml += `<div></div>`;
-            }
-        }
-
-
-        header.innerHTML = headerHtml;
-        table.appendChild(header);
-
-        // Render slots
-        const slotsContainer = document.createElement('div');
-        slotsContainer.id = 'slots-container';
-        slotsContainer.className = 'space-y-4 mt-4';
-        attachRowDnD(slotsContainer);
-
-        state.slots.forEach(slot => {
-            const rowWrap = document.createElement('div');
-            rowWrap.className = 'grid gap-4 items-start slot-row';
-            rowWrap.style.gridTemplateColumns = gridTemplateCols;
-            rowWrap.draggable = true;
-            rowWrap.dataset.slotKey = slot.key;
-            rowWrap.appendChild(createTimeColumn(slot));
-
-            daysInWeek.forEach(d => {
-                if (d.getMonth() === month) {
-                    const dayName = DAYS[(d.getDay() + 6) % 7];
-                    rowWrap.appendChild(createDayCell(dayName, slot, d));
-                } else {
-                    rowWrap.appendChild(document.createElement('div')); // blank cell
-                }
-            });
-
-            slotsContainer.appendChild(rowWrap);
-        });
-
-        table.appendChild(slotsContainer);
-        grid.appendChild(table);
+    // If the current week contains the first day of the month but not Monday, start week from the 1st
+    let weekStart = new Date(monday);
+    if (date.getDate() === 1 && date.getDay() !== 1) {
+      weekStart = new Date(year, month, 1);
     }
+
+    // Calculate week number
+    let firstMondayOfMonth = getMonday(firstOfMonth);
+    let diffDays = Math.round((weekStart - firstMondayOfMonth) / (1000 * 60 * 60 * 24));
+    let weekOfMonth = Math.floor(diffDays / 7) + 1;
+
+    let weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (Week ${weekOfMonth})`;
+
+    $('#view-header').innerHTML = `
+      <div class="flex items-center border rounded-lg p-0.5">
+        <button id="prevWeekBtn" class="p-1.5 rounded-md hover:bg-gray-100" title="Previous Week"><i class="fas fa-chevron-left text-xs"></i></button>
+        <button id="todayBtn" class="px-3 py-0.5 text-sm rounded-md hover:bg-gray-100" title="Go to Today">Today</button>
+        <button id="nextWeekBtn" class="p-1.5 rounded-md hover:bg-gray-100" title="Next Week"><i class="fas fa-chevron-right text-xs"></i></button>
+      </div>
+      <h2 class="text-lg font-medium text-gray-600">${weekLabel}</h2>`;
+
+    // Navigation logic
+    $('#prevWeekBtn').onclick = () => {
+      // If first week of month, go to last week of previous month
+      if (weekStart.getDate() === 1) {
+        let prevMonth = new Date(year, month - 1, 1);
+        displayedDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0); // last day of prev month
+      } else {
+        displayedDate.setDate(displayedDate.getDate() - 7);
+      }
+      renderApp();
+    };
+    $('#nextWeekBtn').onclick = () => {
+      // If last week of month, go to first week of next month
+      let lastDayOfWeek = new Date(weekStart);
+      lastDayOfWeek.setDate(weekStart.getDate() + 6);
+      if (lastDayOfWeek > lastOfMonth) {
+        displayedDate = new Date(year, month + 1, 1); // first day of next month
+      } else {
+        displayedDate.setDate(displayedDate.getDate() + 7);
+      }
+      renderApp();
+    };
+    $('#todayBtn').onclick = () => { displayedDate = new Date(); renderApp(); };
+
+    // Build week grid
+    const grid = $('#grid');
+    grid.innerHTML = '';
+    const table = document.createElement('div');
+
+    const header = document.createElement('div');
+    header.className = 'grid gap-4';
+    const gridTemplateCols = '[time-col] 150px repeat(7, [day-col] 1fr)';
+    header.style.gridTemplateColumns = gridTemplateCols;
+
+    let headerHtml = '<div></div>'; // empty corner cell
+    let daysInWeek = [];
+
+    for (let i = 0; i < 7; i++) {
+      let d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      // Only show days within the current month
+      if (d >= firstOfMonth && d <= lastOfMonth) {
+        daysInWeek.push(d);
+        headerHtml += `
+          <div class="text-sm font-semibold text-center">
+          ${d.toLocaleDateString('en-US', { weekday: 'short' })}
+          <div class="font-normal text-gray-500 text-sm">
+          ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear().toString().slice(-2)}
+          </div>
+          </div>`;
+      } else {
+        headerHtml += `<div></div>`;
+      }
+    }
+
+    header.innerHTML = headerHtml;
+    table.appendChild(header);
+
+    // Render slots
+    const slotsContainer = document.createElement('div');
+    slotsContainer.id = 'slots-container';
+    slotsContainer.className = 'space-y-4 mt-4';
+    attachRowDnD(slotsContainer);
+
+    state.slots.forEach(slot => {
+      const rowWrap = document.createElement('div');
+      rowWrap.className = 'grid gap-4 items-start slot-row';
+      rowWrap.style.gridTemplateColumns = gridTemplateCols;
+      rowWrap.draggable = true;
+      rowWrap.dataset.slotKey = slot.key;
+      rowWrap.appendChild(createTimeColumn(slot));
+
+      for (let i = 0; i < 7; i++) {
+        let d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
+        if (d >= firstOfMonth && d <= lastOfMonth) {
+          const dayName = DAYS[(d.getDay() + 6) % 7];
+          rowWrap.appendChild(createDayCell(dayName, slot, d));
+        } else {
+          rowWrap.appendChild(document.createElement('div')); // blank cell
+        }
+      }
+
+      slotsContainer.appendChild(rowWrap);
+    });
+
+    table.appendChild(slotsContainer);
+    grid.appendChild(table);
+  }
 
 
 
