@@ -391,10 +391,10 @@
         save(); renderTasks();
       });
       node.querySelector('.edit-btn').addEventListener('click', () => {
-        currentTarget.day = task.day; currentTarget.slot = task.slot; currentTarget.editingId = task.id; openModal();
+        currentTarget.date = task.date; currentTarget.slot = task.slot; currentTarget.editingId = task.id; openModal();
       });
       node.querySelector('.dup-btn').addEventListener('click', () => {
-        const zone = zoneOf(task.day, task.slot);
+        const zone = zoneOf(task.date, task.slot);
         if (!zone) return;
         const copy = { ...task, id: crypto.randomUUID(), order: zone.children.length };
         state.tasks.push(copy); save(); renderTasks();
@@ -416,10 +416,10 @@
         e.preventDefault(); zone.classList.remove('drop-highlight');
         const dragging = $('.dragging');
         if(!dragging) return;
-        const id = dragging.dataset.id;
-        const [day, slot] = zone.closest('section').id.replace('cell-','').split('__');
-        const task = state.tasks.find(t => t.id === id);
-        if(task){ task.day = day; task.slot = slot; }
+  const id = dragging.dataset.id;
+  const [date, slot] = zone.closest('section').id.replace('cell-','').split('__');
+  const task = state.tasks.find(t => t.id === id);
+  if(task){ task.date = date; task.slot = slot; }
         renumberOrders(); save();
       });
     }
@@ -434,10 +434,10 @@
     }
     function renumberOrders(){
       document.querySelectorAll('section[id^="cell-"]').forEach(cell => {
-        const [day, slotKey] = cell.id.replace('cell-', '').split('__');
+        const [date, slotKey] = cell.id.replace('cell-', '').split('__');
         [...cell.querySelector('.drop-zone').children].forEach((el, idx) => {
             const t = state.tasks.find(t => t.id === el.dataset.id);
-            if(t) { t.order = idx; t.day = day; t.slot = slotKey; }
+            if(t) { t.order = idx; t.date = date; t.slot = slotKey; }
         });
       });
     }
