@@ -133,25 +133,17 @@
 
     // ---------- Grid Builders ----------
     function buildWeekView(date) {
-    // Custom week logic
+    // Standard weekly view
     let monday = getMonday(date);
     let month = monday.getMonth();
     let year = monday.getFullYear();
-    let firstOfMonth = new Date(year, month, 1);
-    let lastOfMonth = new Date(year, month + 1, 0);
 
-    // If the current week contains the first day of the month but not Monday, start week from the 1st
-    let weekStart = new Date(monday);
-    if (date.getDate() === 1 && date.getDay() !== 1) {
-      weekStart = new Date(year, month, 1);
-    }
+    // Calculate week number (relative to year)
+    let firstMondayOfYear = getMonday(new Date(year, 0, 1));
+    let diffDays = Math.round((monday - firstMondayOfYear) / (1000 * 60 * 60 * 24));
+    let weekOfYear = Math.floor(diffDays / 7) + 1;
 
-    // Calculate week number
-    let firstMondayOfMonth = getMonday(firstOfMonth);
-    let diffDays = Math.round((weekStart - firstMondayOfMonth) / (1000 * 60 * 60 * 24));
-    let weekOfMonth = Math.floor(diffDays / 7) + 1;
-
-    let weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (Week ${weekOfMonth})`;
+    let weekLabel = `${monday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (Week ${weekOfYear})`;
 
     $('#view-header').innerHTML = `
       <div class="flex items-center border rounded-lg p-0.5">
@@ -161,26 +153,13 @@
       </div>
       <h2 class="text-lg font-medium text-gray-600">${weekLabel}</h2>`;
 
-    // Navigation logic
+    // Navigation logic: always move by 7 days
     $('#prevWeekBtn').onclick = () => {
-      // If first week of month, go to last week of previous month
-      if (weekStart.getDate() === 1) {
-        let prevMonth = new Date(year, month - 1, 1);
-        displayedDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0); // last day of prev month
-      } else {
-        displayedDate.setDate(displayedDate.getDate() - 7);
-      }
+      displayedDate.setDate(displayedDate.getDate() - 7);
       renderApp();
     };
     $('#nextWeekBtn').onclick = () => {
-      // If last week of month, go to first week of next month
-      let lastDayOfWeek = new Date(weekStart);
-      lastDayOfWeek.setDate(weekStart.getDate() + 6);
-      if (lastDayOfWeek > lastOfMonth) {
-        displayedDate = new Date(year, month + 1, 1); // first day of next month
-      } else {
-        displayedDate.setDate(displayedDate.getDate() + 7);
-      }
+      displayedDate.setDate(displayedDate.getDate() + 7);
       renderApp();
     };
     $('#todayBtn').onclick = () => { displayedDate = new Date(); renderApp(); };
@@ -199,21 +178,18 @@
     let daysInWeek = [];
 
     for (let i = 0; i < 7; i++) {
-      let d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
-      // Only show days within the current month
-      if (d >= firstOfMonth && d <= lastOfMonth) {
-        daysInWeek.push(d);
-        headerHtml += `
-          <div class="text-sm font-semibold text-center">
-          ${d.toLocaleDateString('en-US', { weekday: 'short' })}
-          <div class="font-normal text-gray-500 text-sm">
-          ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear().toString().slice(-2)}
-          </div>
-          </div>`;
-      } else {
-        headerHtml += `<div></div>`;
-      }
+      let d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      daysInWeek.push(d);
+      // Highlight current month days
+      let highlight = d.getMonth() === month ? '' : 'opacity-50';
+      headerHtml += `
+        <div class="text-sm font-semibold text-center ${highlight}">
+        ${d.toLocaleDateString('en-US', { weekday: 'short' })}
+        <div class="font-normal text-gray-500 text-sm">
+        ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear().toString().slice(-2)}
+        </div>
+        </div>`;
     }
 
     header.innerHTML = headerHtml;
@@ -233,16 +209,10 @@
       rowWrap.dataset.slotKey = slot.key;
       rowWrap.appendChild(createTimeColumn(slot));
 
-      for (let i = 0; i < 7; i++) {
-        let d = new Date(weekStart);
-        d.setDate(weekStart.getDate() + i);
-        if (d >= firstOfMonth && d <= lastOfMonth) {
-          const dayName = DAYS[(d.getDay() + 6) % 7];
-          rowWrap.appendChild(createDayCell(dayName, slot, d));
-        } else {
-          rowWrap.appendChild(document.createElement('div')); // blank cell
-        }
-      }
+      daysInWeek.forEach(d => {
+        const dayName = DAYS[(d.getDay() + 6) % 7];
+        rowWrap.appendChild(createDayCell(dayName, slot, d));
+      });
 
       slotsContainer.appendChild(rowWrap);
     });
